@@ -42,27 +42,17 @@ test("every tool re-prompts to set the key and makes no request", async () => {
   const m = setup();
   const { calls, restore } = installFetch(() => new Response("{}"));
   const { ctx } = makeCtx();
-  const paramsByTool: Record<string, any> = {
-    obsidian_read: { path: "a.md" },
-    obsidian_write: { path: "a.md", content: "x" },
-    obsidian_append: { path: "a.md", content: "x" },
-    obsidian_delete: { path: "a.md" },
-    obsidian_list: {},
-    obsidian_list_vault: {},
-    obsidian_info: {},
-    obsidian_create_note: { title: "t", content: "c" },
-  };
   try {
-    for (const [name, params] of Object.entries(paramsByTool)) {
-      const res = await m.tools
-        .get(name)!
-        .execute("id", params, undefined, undefined, ctx);
+    // The key guard runs before params are read, so `{}` is safe for every tool.
+    for (const [name, tool] of m.tools) {
+      const res = await tool.execute("id", {}, undefined, undefined, ctx);
       assert.match(
         res.content[0].text,
         /OBSIDIAN_API_KEY is not set/,
         `${name} should prompt to set the key`,
       );
     }
+    assert.ok(m.tools.size >= 20, "all tools should be registered");
     assert.equal(calls.length, 0, "no tool should hit the network without a key");
   } finally {
     restore();

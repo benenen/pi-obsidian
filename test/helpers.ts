@@ -27,6 +27,8 @@ export interface MockPi {
   tools: Map<string, RegisteredToolLike>;
   commands: Map<string, any>;
   handlers: Map<string, (event: any, ctx: any) => any>;
+  /** User messages the extension injected via pi.sendUserMessage(). */
+  userMessages: any[];
 }
 
 /** A mock ExtensionAPI that records everything the extension registers. */
@@ -34,14 +36,17 @@ export function makeMockPi(): MockPi {
   const tools = new Map<string, RegisteredToolLike>();
   const commands = new Map<string, any>();
   const handlers = new Map<string, (event: any, ctx: any) => any>();
+  const userMessages: any[] = [];
   const pi: any = {
     on: (event: string, handler: any) => handlers.set(event, handler),
     registerTool: (tool: any) => tools.set(tool.name, tool),
     registerCommand: (name: string, opts: any) => commands.set(name, opts),
     registerShortcut: () => {},
     registerFlag: () => {},
+    sendUserMessage: (content: any) => userMessages.push(content),
+    sendMessage: () => {},
   };
-  return { pi, tools, commands, handlers };
+  return { pi, tools, commands, handlers, userMessages };
 }
 
 export interface Notification {

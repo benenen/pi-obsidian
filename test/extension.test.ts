@@ -35,12 +35,27 @@ test("registers all tools, the /obsidian command, and a session_start handler", 
     [...m.tools.keys()].sort(),
     [
       "obsidian_append",
+      "obsidian_append_active",
       "obsidian_create_note",
       "obsidian_delete",
+      "obsidian_delete_active",
+      "obsidian_execute_command",
+      "obsidian_get_active",
       "obsidian_info",
       "obsidian_list",
+      "obsidian_list_commands",
+      "obsidian_list_tags",
       "obsidian_list_vault",
+      "obsidian_open",
+      "obsidian_patch",
+      "obsidian_periodic_append",
+      "obsidian_periodic_delete",
+      "obsidian_periodic_get",
+      "obsidian_periodic_update",
       "obsidian_read",
+      "obsidian_search",
+      "obsidian_search_simple",
+      "obsidian_update_active",
       "obsidian_write",
     ],
   );
@@ -269,6 +284,241 @@ test("obsidian_list_vault: GETs /vault/ and formats the listing", async () => {
   }
 });
 
+test("obsidian_patch: PATCHes with Operation/Target-Type/URL-encoded Target headers", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() => textResponse("", 200));
+  const { ctx } = makeCtx();
+  try {
+    const res = await m.tools.get("obsidian_patch")!.execute(
+      "id",
+      {
+        path: "n.md",
+        operation: "append",
+        targetType: "heading",
+        target: "标题 1",
+        content: "more",
+      },
+      undefined,
+      undefined,
+      ctx,
+    );
+    assert.equal(calls[0].url, `${BASE}/vault/n.md`);
+    assert.equal(calls[0].options.method, "PATCH");
+    const h = calls[0].options.headers;
+    assert.equal(h.Operation, "append");
+    assert.equal(h["Target-Type"], "heading");
+    assert.equal(h.Target, encodeURIComponent("标题 1"));
+    assert.equal(h["Content-Type"], "text/markdown");
+    assert.equal(calls[0].options.body, "more");
+    assert.match(res.content[0].text, /Patched `n.md`/);
+  } finally {
+    restore();
+  }
+});
+
+test("obsidian_patch: frontmatter target uses application/json content-type", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() => textResponse("", 200));
+  const { ctx } = makeCtx();
+  try {
+    await m.tools.get("obsidian_patch")!.execute(
+      "id",
+      { path: "n.md", operation: "replace", targetType: "frontmatter", target: "status", content: '"done"' },
+      undefined,
+      undefined,
+      ctx,
+    );
+    assert.equal(calls[0].options.headers["Content-Type"], "application/json");
+  } finally {
+    restore();
+  }
+});
+
+test("active-file tools hit /active/ with the right verbs", async () => {
+  const m = setup();
+  const { ctx } = makeCtx();
+
+  let f = installFetch(() => textResponse("ACTIVE BODY"));
+  let res = await m.tools.get("obsidian_get_active")!.execute("id", {}, undefined, undefined, ctx);
+  assert.equal(f.calls[0].url, `${BASE}/active/`);
+  assert.equal(res.content[0].text, "ACTIVE BODY");
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  res = await m.tools.get("obsidian_update_active")!.execute("id", { content: "x" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].options.method, "PUT");
+  assert.match(res.content[0].text, /Updated the active file/);
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  res = await m.tools.get("obsidian_append_active")!.execute("id", { content: "x" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].options.method, "POST");
+  assert.equal(f.calls[0].options.headers["Content-Type"], "text/markdown; charset=utf-8");
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  res = await m.tools.get("obsidian_delete_active")!.execute("id", {}, undefined, undefined, ctx);
+  assert.equal(f.calls[0].options.method, "DELETE");
+  assert.match(res.content[0].text, /Deleted the active file/);
+  f.restore();
+});
+
+test("obsidian_search_simple: POSTs query + contextLength as query params", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() =>
+    jsonResponse([
+      { filename: "a.md", matches: [1, 2] },
+      { filename: "b.md", matches: [] },
+    ]),
+  );
+  const { ctx } = makeCtx();
+  try {
+    const res = await m.tools.get("obsidian_search_simple")!.execute(
+      "id",
+      { query: "hello world", contextLength: 20 },
+      undefined,
+      undefined,
+      ctx,
+    );
+    const u = new URL(calls[0].url);
+    assert.equal(u.pathname, "/search/simple/");
+    assert.equal(u.searchParams.get("query"), "hello world");
+    assert.equal(u.searchParams.get("contextLength"), "20");
+    assert.equal(calls[0].options.method, "POST");
+    assert.match(res.content[0].text, /2 results/);
+    assert.match(res.content[0].text, /a\.md \(2 matches\)/);
+  } finally {
+    restore();
+  }
+});
+
+test("obsidian_search: sends the right content-type per format", async () => {
+  const m = setup();
+  const { ctx } = makeCtx();
+
+  let f = installFetch(() => jsonResponse([{ filename: "a.md" }]));
+  await m.tools.get("obsidian_search")!.execute("id", { query: "{}" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].url, `${BASE}/search/`);
+  assert.equal(
+    f.calls[0].options.headers["Content-Type"],
+    "application/vnd.olrapi.jsonlogic+json",
+  );
+  f.restore();
+
+  f = installFetch(() => jsonResponse([]));
+  await m.tools.get("obsidian_search")!.execute(
+    "id",
+    { query: "TABLE file.name", format: "dataview" },
+    undefined,
+    undefined,
+    ctx,
+  );
+  assert.equal(
+    f.calls[0].options.headers["Content-Type"],
+    "application/vnd.olrapi.dataview.dql+txt",
+  );
+  assert.equal(f.calls[0].options.body, "TABLE file.name");
+  f.restore();
+});
+
+test("obsidian_list_tags: formats {tags:[{name,count}]}", async () => {
+  const m = setup();
+  const { restore } = installFetch(() =>
+    jsonResponse({ tags: [{ name: "ai", count: 3 }, { name: "note", count: 1 }] }),
+  );
+  const { ctx } = makeCtx();
+  try {
+    const res = await m.tools.get("obsidian_list_tags")!.execute("id", {}, undefined, undefined, ctx);
+    assert.match(res.content[0].text, /2 tags/);
+    assert.match(res.content[0].text, /#ai \(3\)/);
+  } finally {
+    restore();
+  }
+});
+
+test("obsidian_list_commands: unwraps {commands:[...]} and formats", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() =>
+    jsonResponse({ commands: [{ id: "editor:save-file", name: "Save" }] }),
+  );
+  const { ctx } = makeCtx();
+  try {
+    const res = await m.tools.get("obsidian_list_commands")!.execute("id", {}, undefined, undefined, ctx);
+    assert.equal(calls[0].url, `${BASE}/commands/`);
+    assert.match(res.content[0].text, /1 commands/);
+    assert.match(res.content[0].text, /`editor:save-file` — Save/);
+  } finally {
+    restore();
+  }
+});
+
+test("obsidian_execute_command: POSTs to /commands/{id}/ (id encoded)", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() => textResponse("", 200));
+  const { ctx } = makeCtx();
+  try {
+    const res = await m.tools.get("obsidian_execute_command")!.execute(
+      "id",
+      { commandId: "editor:save-file" },
+      undefined,
+      undefined,
+      ctx,
+    );
+    assert.equal(calls[0].url, `${BASE}/commands/editor%3Asave-file/`);
+    assert.equal(calls[0].options.method, "POST");
+    assert.match(res.content[0].text, /Executed command/);
+  } finally {
+    restore();
+  }
+});
+
+test("obsidian_open: POSTs to /open/{path} with the newLeaf query", async () => {
+  const m = setup();
+  const { calls, restore } = installFetch(() => textResponse("", 200));
+  const { ctx } = makeCtx();
+  try {
+    await m.tools.get("obsidian_open")!.execute(
+      "id",
+      { path: "a/b.md", newLeaf: true },
+      undefined,
+      undefined,
+      ctx,
+    );
+    assert.equal(calls[0].url, `${BASE}/open/a/b.md?newLeaf=true`);
+    assert.equal(calls[0].options.method, "POST");
+  } finally {
+    restore();
+  }
+});
+
+test("periodic-note tools target /periodic/{period}/ with the right verbs", async () => {
+  const m = setup();
+  const { ctx } = makeCtx();
+
+  let f = installFetch(() => textResponse("DAILY"));
+  let res = await m.tools.get("obsidian_periodic_get")!.execute("id", { period: "daily" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].url, `${BASE}/periodic/daily/`);
+  assert.equal(res.content[0].text, "DAILY");
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  res = await m.tools.get("obsidian_periodic_append")!.execute("id", { period: "weekly", content: "x" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].url, `${BASE}/periodic/weekly/`);
+  assert.equal(f.calls[0].options.method, "POST");
+  assert.match(res.content[0].text, /weekly note/);
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  await m.tools.get("obsidian_periodic_update")!.execute("id", { period: "daily", content: "x" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].options.method, "PUT");
+  f.restore();
+
+  f = installFetch(() => textResponse("", 200));
+  await m.tools.get("obsidian_periodic_delete")!.execute("id", { period: "daily" }, undefined, undefined, ctx);
+  assert.equal(f.calls[0].options.method, "DELETE");
+  f.restore();
+});
+
 test("session_start: notifies 'connected' when the API responds ok", async () => {
   const m = setup();
   const { calls, restore } = installFetch(() => textResponse("{}", 200));
@@ -321,10 +571,21 @@ test("session_start: reports 'unreachable' when fetch throws", async () => {
   }
 });
 
-test("/obsidian command notifies how to use the tools", async () => {
+test("/obsidian <intent> routes the request to the agent via the obsidian tools", async () => {
   const m = setup();
   const { ctx, notifications } = makeCtx();
-  await m.commands.get("obsidian").handler("", ctx);
+  await m.commands.get("obsidian").handler("list my vault", ctx);
+  assert.equal(m.userMessages.length, 1);
+  assert.match(m.userMessages[0], /obsidian_/); // steers toward the tools
+  assert.match(m.userMessages[0], /list my vault/); // carries the intent
+  assert.equal(notifications.length, 0); // acts instead of just hinting
+});
+
+test("/obsidian with no argument shows usage and sends nothing", async () => {
+  const m = setup();
+  const { ctx, notifications } = makeCtx();
+  await m.commands.get("obsidian").handler("   ", ctx);
+  assert.equal(m.userMessages.length, 0);
   assert.equal(notifications.length, 1);
-  assert.match(notifications[0].message, /obsidian_/);
+  assert.match(notifications[0].message, /Usage/i);
 });

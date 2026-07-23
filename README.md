@@ -34,30 +34,62 @@ If `OBSIDIAN_API_KEY` is unset (or blank/whitespace), the extension keeps
 prompting you to set it: once at session start, and again from **every**
 `obsidian_*` tool call — no network request is made until a key is configured.
 
-## Tools
+## Tools (23)
 
-| Tool                    | What it does                                                        |
-| ----------------------- | ------------------------------------------------------------------ |
-| `obsidian_read`         | Read a file's full markdown content.                               |
-| `obsidian_write`        | Write/overwrite a file (creates parent dirs).                      |
-| `obsidian_append`       | Append to an existing file.                                        |
-| `obsidian_delete`       | Delete a file or empty folder.                                     |
-| `obsidian_list`         | List files/folders at a path.                                     |
-| `obsidian_list_vault`   | List the vault root.                                              |
-| `obsidian_info`         | Show API version + auth status.                                   |
-| `obsidian_create_note`  | Create a note with frontmatter (title / tags / auto filename).    |
+**Vault files**
 
-Command: `/obsidian` — quick hint on how to use the tools.
+| Tool                    | Endpoint | What it does                                              |
+| ----------------------- | -------- | -------------------------------------------------------- |
+| `obsidian_read`         | `GET /vault/{path}`    | Read a file's full markdown content.       |
+| `obsidian_write`        | `PUT /vault/{path}`    | Write/overwrite a file (creates parent dirs). |
+| `obsidian_append`       | `POST /vault/{path}`   | Append to a file.                          |
+| `obsidian_patch`        | `PATCH /vault/{path}`  | Insert relative to a heading/block/frontmatter field. |
+| `obsidian_delete`       | `DELETE /vault/{path}` | Delete a file or empty folder.             |
+| `obsidian_list`         | `GET /vault/{dir}/`    | List files/folders at a path.              |
+| `obsidian_list_vault`   | `GET /vault/`          | List the vault root.                       |
+| `obsidian_create_note`  | `PUT /vault/{path}`    | Create a note with frontmatter (convenience). |
 
-## API endpoints used
+**Active file** (the note currently open in Obsidian)
 
-| Method   | Path            | Purpose                    |
-| -------- | --------------- | -------------------------- |
-| `GET`    | `/`             | API info / auth status     |
-| `GET`    | `/vault/{path}` | Read file or list directory |
-| `PUT`    | `/vault/{path}` | Write/create a file        |
-| `POST`   | `/vault/{path}` | Append to a file           |
-| `DELETE` | `/vault/{path}` | Delete a file or folder    |
+| Tool                     | Endpoint | What it does                    |
+| ------------------------ | -------- | ------------------------------- |
+| `obsidian_get_active`    | `GET /active/`    | Read the active file.  |
+| `obsidian_update_active` | `PUT /active/`    | Overwrite the active file. |
+| `obsidian_append_active` | `POST /active/`   | Append to the active file. |
+| `obsidian_delete_active` | `DELETE /active/` | Delete the active file. |
+
+**Periodic notes** (`daily`/`weekly`/`monthly`/`quarterly`/`yearly`)
+
+| Tool                        | Endpoint | What it does                    |
+| --------------------------- | -------- | ------------------------------- |
+| `obsidian_periodic_get`     | `GET /periodic/{period}/`    | Read the current periodic note. |
+| `obsidian_periodic_append`  | `POST /periodic/{period}/`   | Append to it (e.g. today's daily note). |
+| `obsidian_periodic_update`  | `PUT /periodic/{period}/`    | Overwrite it. |
+| `obsidian_periodic_delete`  | `DELETE /periodic/{period}/` | Delete it. |
+
+**Search / tags / commands**
+
+| Tool                       | Endpoint | What it does                    |
+| -------------------------- | -------- | ------------------------------- |
+| `obsidian_search_simple`   | `POST /search/simple/` | Full-text search with context. |
+| `obsidian_search`          | `POST /search/`        | Advanced query (Dataview DQL or JsonLogic). |
+| `obsidian_list_tags`       | `GET /tags/`           | List all tags with usage counts. |
+| `obsidian_list_commands`   | `GET /commands/`       | List runnable Obsidian commands. |
+| `obsidian_execute_command` | `POST /commands/{id}/` | Run a command by id. |
+| `obsidian_open`            | `POST /open/{path}`    | Open a file in the Obsidian UI. |
+| `obsidian_info`            | `GET /`                | Show API version + auth status. |
+
+### Command
+
+`/obsidian <instruction>` — routes your instruction to the agent and steers it to
+use the `obsidian_*` tools (e.g. `/obsidian list my vault`, `/obsidian append
+today's todos to the daily note`). With no argument it prints usage.
+
+### Not exposed as tools
+
+The dated periodic variants (`/periodic/{period}/{y}/{m}/{d}/`), `PATCH` on
+`/active/` and `/periodic/`, and the server/transport endpoints (`/mcp/`,
+`/obsidian-local-rest-api.crt`, `/openapi.yaml`) are intentionally omitted.
 
 ## Development
 
