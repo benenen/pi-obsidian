@@ -392,33 +392,26 @@ test("obsidian_search_simple: POSTs query + contextLength as query params", asyn
   }
 });
 
-test("obsidian_search: sends the right content-type per format", async () => {
+test("obsidian_search: POSTs the JsonLogic query with the jsonlogic content-type", async () => {
   const m = setup();
+  const { calls, restore } = installFetch(() => jsonResponse([{ filename: "a.md" }]));
   const { ctx } = makeCtx();
-
-  let f = installFetch(() => jsonResponse([{ filename: "a.md" }]));
-  await m.tools.get("obsidian_search")!.execute("id", { query: "{}" }, undefined, undefined, ctx);
-  assert.equal(f.calls[0].url, `${BASE}/search/`);
-  assert.equal(
-    f.calls[0].options.headers["Content-Type"],
-    "application/vnd.olrapi.jsonlogic+json",
-  );
-  f.restore();
-
-  f = installFetch(() => jsonResponse([]));
-  await m.tools.get("obsidian_search")!.execute(
-    "id",
-    { query: "TABLE file.name", format: "dataview" },
-    undefined,
-    undefined,
-    ctx,
-  );
-  assert.equal(
-    f.calls[0].options.headers["Content-Type"],
-    "application/vnd.olrapi.dataview.dql+txt",
-  );
-  assert.equal(f.calls[0].options.body, "TABLE file.name");
-  f.restore();
+  try {
+    const body = '{"in": ["todo", {"var": "tags"}]}';
+    const res = await m.tools
+      .get("obsidian_search")!
+      .execute("id", { query: body }, undefined, undefined, ctx);
+    assert.equal(calls[0].url, `${BASE}/search/`);
+    assert.equal(calls[0].options.method, "POST");
+    assert.equal(
+      calls[0].options.headers["Content-Type"],
+      "application/vnd.olrapi.jsonlogic+json",
+    );
+    assert.equal(calls[0].options.body, body);
+    assert.match(res.content[0].text, /a\.md/);
+  } finally {
+    restore();
+  }
 });
 
 test("obsidian_list_tags: formats {tags:[{name,count}]}", async () => {

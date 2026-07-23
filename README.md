@@ -72,7 +72,7 @@ prompting you to set it: once at session start, and again from **every**
 | Tool                       | Endpoint | What it does                    |
 | -------------------------- | -------- | ------------------------------- |
 | `obsidian_search_simple`   | `POST /search/simple/` | Full-text search with context. |
-| `obsidian_search`          | `POST /search/`        | Advanced query (Dataview DQL or JsonLogic). |
+| `obsidian_search`          | `POST /search/`        | Advanced query — a JsonLogic expression over each note's metadata (frontmatter/tags/path/content). |
 | `obsidian_list_tags`       | `GET /tags/`           | List all tags with usage counts. |
 | `obsidian_list_commands`   | `GET /commands/`       | List runnable Obsidian commands. |
 | `obsidian_execute_command` | `POST /commands/{id}/` | Run a command by id. |

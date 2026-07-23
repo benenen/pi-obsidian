@@ -633,30 +633,23 @@ export default function (pi: ExtensionAPI) {
   // ── Tool: obsidian_search ──
   pi.registerTool({
     name: "obsidian_search",
-    label: "Obsidian Search (advanced)",
+    label: "Obsidian Search (JsonLogic)",
     description:
-      "Run an advanced query against every file in the vault, using either a Dataview DQL query or a JsonLogic query. Returns the raw JSON result.",
+      "Advanced search: evaluate a JsonLogic expression against every note's " +
+      "metadata (frontmatter, tags, path, content) and return the non-falsy " +
+      "matches. Besides standard JsonLogic operators, `glob` and `regexp` are " +
+      'available, e.g. {"glob": ["Journal/*", {"var": "path"}]}.',
     parameters: Type.Object({
       query: Type.String({
         description:
-          "The query. For 'jsonlogic', a JSON string; for 'dataview', a DQL query string.",
+          'A JsonLogic query as a JSON string, e.g. \'{"in": ["todo", {"var": "tags"}]}\'.',
       }),
-      format: Type.Optional(
-        Type.Union([Type.Literal("jsonlogic"), Type.Literal("dataview")], {
-          description: "Query language (default 'jsonlogic').",
-        }),
-      ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       if (!hasApiKey()) return missingKeyResult();
-      const format = params.format ?? "jsonlogic";
-      const contentType =
-        format === "dataview"
-          ? "application/vnd.olrapi.dataview.dql+txt"
-          : "application/vnd.olrapi.jsonlogic+json";
       const res = await obsidianFetch("/search/", {
         method: "POST",
-        headers: { "Content-Type": contentType },
+        headers: { "Content-Type": "application/vnd.olrapi.jsonlogic+json" },
         body: params.query,
       });
       if (!res.ok) return errResult(res);
