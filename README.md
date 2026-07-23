@@ -29,8 +29,10 @@ source**:
 
 Copy [`.env.example`](./.env.example) and fill in your own values, or export the
 vars in your shell. Get the key from **Obsidian → Settings → Local REST API**.
-If `OBSIDIAN_API_KEY` is unset, the extension warns at session start and API
-calls will fail with `401`.
+
+If `OBSIDIAN_API_KEY` is unset (or blank/whitespace), the extension keeps
+prompting you to set it: once at session start, and again from **every**
+`obsidian_*` tool call — no network request is made until a key is configured.
 
 ## Tools
 
@@ -56,3 +58,16 @@ Command: `/obsidian` — quick hint on how to use the tools.
 | `PUT`    | `/vault/{path}` | Write/create a file        |
 | `POST`   | `/vault/{path}` | Append to a file           |
 | `DELETE` | `/vault/{path}` | Delete a file or folder    |
+
+## Development
+
+```bash
+npm install       # install dev deps (types + tsx + typescript)
+npm run typecheck  # tsc --noEmit against index.ts
+npm test           # node:test mock suite (test/*.test.ts)
+```
+
+The tests mock `pi` (the ExtensionAPI) and the global `fetch`, so they run fully
+offline — no vault or network required. `pi` loads `index.ts` directly via its
+own type-stripping loader, so `npm run typecheck` is what actually catches type
+errors.
