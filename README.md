@@ -34,7 +34,7 @@ If `OBSIDIAN_API_KEY` is unset (or blank/whitespace), the extension keeps
 prompting you to set it: once at session start, and again from **every**
 `obsidian_*` tool call — no network request is made until a key is configured.
 
-## Tools (23)
+## Tools (22)
 
 **Vault files**
 
@@ -72,7 +72,6 @@ prompting you to set it: once at session start, and again from **every**
 | Tool                       | Endpoint | What it does                    |
 | -------------------------- | -------- | ------------------------------- |
 | `obsidian_search_simple`   | `POST /search/simple/` | Full-text search with context. |
-| `obsidian_search`          | `POST /search/`        | Advanced query — a JsonLogic expression over each note's metadata (frontmatter/tags/path/content). |
 | `obsidian_list_tags`       | `GET /tags/`           | List all tags with usage counts. |
 | `obsidian_list_commands`   | `GET /commands/`       | List runnable Obsidian commands. |
 | `obsidian_execute_command` | `POST /commands/{id}/` | Run a command by id. |
@@ -90,6 +89,11 @@ today's todos to the daily note`). With no argument it prints usage.
 The dated periodic variants (`/periodic/{period}/{y}/{m}/{d}/`), `PATCH` on
 `/active/` and `/periodic/`, and the server/transport endpoints (`/mcp/`,
 `/obsidian-local-rest-api.crt`, `/openapi.yaml`) are intentionally omitted.
+
+`POST /search/` (advanced JsonLogic search) is **also omitted**: in the plugin
+it waits up to 5s per note for the metadata cache and iterates the whole vault
+sequentially, so it routinely hangs / times out on non-trivial vaults. Use
+`obsidian_search_simple` (Obsidian's built-in index — fast) instead.
 
 ## Development
 

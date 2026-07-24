@@ -630,34 +630,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // ── Tool: obsidian_search ──
-  pi.registerTool({
-    name: "obsidian_search",
-    label: "Obsidian Search (JsonLogic)",
-    description:
-      "Advanced search: evaluate a JsonLogic expression against every note's " +
-      "metadata (frontmatter, tags, path, content) and return the non-falsy " +
-      "matches. Besides standard JsonLogic operators, `glob` and `regexp` are " +
-      'available, e.g. {"glob": ["Journal/*", {"var": "path"}]}.',
-    parameters: Type.Object({
-      query: Type.String({
-        description:
-          'A JsonLogic query as a JSON string, e.g. \'{"in": ["todo", {"var": "tags"}]}\'.',
-      }),
-    }),
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-      if (!hasApiKey()) return missingKeyResult();
-      const res = await obsidianFetch("/search/", {
-        method: "POST",
-        headers: { "Content-Type": "application/vnd.olrapi.jsonlogic+json" },
-        body: params.query,
-      });
-      if (!res.ok) return errResult(res);
-      const data = await res.json();
-      return okResult(`\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``);
-    },
-  });
-
   // ── Tool: obsidian_list_tags ──
   pi.registerTool({
     name: "obsidian_list_tags",

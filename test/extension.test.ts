@@ -53,7 +53,6 @@ test("registers all tools, the /obsidian command, and a session_start handler", 
       "obsidian_periodic_get",
       "obsidian_periodic_update",
       "obsidian_read",
-      "obsidian_search",
       "obsidian_search_simple",
       "obsidian_update_active",
       "obsidian_write",
@@ -387,28 +386,6 @@ test("obsidian_search_simple: POSTs query + contextLength as query params", asyn
     assert.equal(calls[0].options.method, "POST");
     assert.match(res.content[0].text, /2 results/);
     assert.match(res.content[0].text, /a\.md \(2 matches\)/);
-  } finally {
-    restore();
-  }
-});
-
-test("obsidian_search: POSTs the JsonLogic query with the jsonlogic content-type", async () => {
-  const m = setup();
-  const { calls, restore } = installFetch(() => jsonResponse([{ filename: "a.md" }]));
-  const { ctx } = makeCtx();
-  try {
-    const body = '{"in": ["todo", {"var": "tags"}]}';
-    const res = await m.tools
-      .get("obsidian_search")!
-      .execute("id", { query: body }, undefined, undefined, ctx);
-    assert.equal(calls[0].url, `${BASE}/search/`);
-    assert.equal(calls[0].options.method, "POST");
-    assert.equal(
-      calls[0].options.headers["Content-Type"],
-      "application/vnd.olrapi.jsonlogic+json",
-    );
-    assert.equal(calls[0].options.body, body);
-    assert.match(res.content[0].text, /a\.md/);
   } finally {
     restore();
   }
